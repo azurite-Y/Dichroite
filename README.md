@@ -1,4 +1,5 @@
 Dichroite
+=
 #### 介绍
 一个基础的数据访问层实现，依托于Fluorite自动配置所运行而与Fluorite协同使用，内部原理参考Mybatis，使用方法与Mybatis大体相同，但仅支持注解式。
 
