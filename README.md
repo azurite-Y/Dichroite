@@ -20,7 +20,7 @@ public class App {
 ---
 ## 三、测试项目地址
 
-框架测试项目地址：https://gitee.com/azurite_y/DichroiteTest <br/>
+框架测试项目地址：https://gitee.com/azurite_y/dichroite-test <br/>
 
 ## 四、原理概述
 
@@ -64,7 +64,7 @@ public class App {
 <where>
   <if></if>
   <if></if>
-<where>
+</where>
 ```
 
 
