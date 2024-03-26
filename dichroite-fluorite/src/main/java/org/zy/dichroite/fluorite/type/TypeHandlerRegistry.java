@@ -235,8 +235,8 @@ public final class TypeHandlerRegistry {
 	/**
 	 * 通过java类型和对应的jdbc类型获得 {@code TypeHandler }实现
 	 * @param <T>
-	 * @param type - ava类型
-	 * @param jdbcType - jdbc类型
+	 * @param javaType java类型
+	 * @param jdbcType jdbc类型
 	 * @return
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
@@ -246,6 +246,7 @@ public final class TypeHandlerRegistry {
 		if (jdbcHandlerMap != null) {
 			handler = jdbcHandlerMap.get(jdbcType);
 			if (handler == null) {
+				// 若 jdbcType 无对应类型处理器则尝试获取基础 TypeHandler
 				handler = jdbcHandlerMap.get(null);
 			}
 		}

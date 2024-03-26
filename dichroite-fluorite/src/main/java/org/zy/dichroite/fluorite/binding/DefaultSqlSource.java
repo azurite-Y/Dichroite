@@ -206,27 +206,33 @@ public class DefaultSqlSource implements SqlSource {
 		/**
 		 * 判断当前对象是否是数组或Collection类型，若是则追加对应的sql并配置属性集
 		 * @param object - 根据子实现对应方法传入的对象而定，可能是mpaaer方法入菜对象亦或者是
-		 * @param parameClz - mpaaer方法入菜对象类型
-		 * @param builder
+		 * @param parameClz mapper 方法入参对象类型
+		 * @param builder 替换字符串
+		 * @param step 入参参数下标索引
 		 * @return
 		 */
-		protected boolean appendArrayCollectionSql(Object object,Class<?> parameClz,StringBuilder builder) {
+		protected boolean appendArrayCollectionSql(Object object,Class<?> parameClz,StringBuilder builder, int step) {
 			if (parameClz.isArray()) { // 若Map中有Array类型对象
 				int len = Array.getLength(object) - 1;
 				Class<?> arrObjClaz = null;
 				TypeHandler<Object> handler = null;
-				for (int i = 0; i <= len; i++) {
-					Object arrObj = Array.get(object, i);
-					if (arrObjClaz == null) {
-						arrObjClaz = arrObj.getClass();
-						handler = typeHandlerRegistry.getTypeHandler(arrObjClaz);
+
+				int count = replaceParts.size() - 1;
+				for (; step <= count; step++) {
+					for (int i = 0; i <= len; i++) {
+						Object arrObj = Array.get(object, i);
+						if (arrObjClaz == null) {
+							arrObjClaz = arrObj.getClass();
+							handler = typeHandlerRegistry.getTypeHandler(arrObjClaz);
+						}
+						this.parameterValueMappins.add(arrObj);
+						this.typeHandlerList.add(handler);
+						builder.append("?");
+						if (i < len) {
+							builder.append(",");
+						}
 					}
-					this.parameterValueMappins.add(arrObj);
-					this.typeHandlerList.add(handler);
-					builder.append("?");
-					if (i < len) {
-						builder.append(",");
-					}
+					sql = sql.replace(replaceParts.get(step), builder.toString());
 				}
 				return true;
 			} else if (Collection.class.isAssignableFrom(parameClz)) { // 若Map中有Collection类型对象
@@ -235,18 +241,23 @@ public class DefaultSqlSource implements SqlSource {
 				int i = 0;
 				Class<?> arrObjClaz = null;
 				TypeHandler<Object> handler = null;
-				for (Iterator<?> iterator = coll.iterator(); iterator.hasNext();) {
-					Object collObj = (Object) iterator.next();
-					if (arrObjClaz == null) {
-						arrObjClaz = collObj.getClass();
-						handler = typeHandlerRegistry.getTypeHandler(arrObjClaz);
+				
+				int count = replaceParts.size() - 1;
+				for (; step <= count; step++) {
+					for (Iterator<?> iterator = coll.iterator(); iterator.hasNext();) {
+						Object collObj = (Object) iterator.next();
+						if (arrObjClaz == null) {
+							arrObjClaz = collObj.getClass();
+							handler = typeHandlerRegistry.getTypeHandler(arrObjClaz);
+						}
+						this.parameterValueMappins.add(collObj);
+						this.typeHandlerList.add(handler);
+						builder.append("?");
+						if (i++ < len) {
+							builder.append(",");
+						}
 					}
-					this.parameterValueMappins.add(collObj);
-					this.typeHandlerList.add(handler);
-					builder.append("?");
-					if (i++ < len) {
-						builder.append(",");
-					}
+					sql = sql.replace(replaceParts.get(step), builder.toString());
 				}
 				return true;
 			}
@@ -287,21 +298,15 @@ public class DefaultSqlSource implements SqlSource {
 
 			int count = sortedlist.size() - 1;
 			ParameterMapping pm;
-			Class<?> arrObjClaz = null;
-			TypeHandler<Object> handler = null;
 			for (int step = 0; step <= count; step++) {
 				pm = sortedlist.get(step);
 				Object object = mapParameter.get(pm.getProperty());
-				if (!appendArrayCollectionSql(object,parameClz,builder)) {
+				if (!appendArrayCollectionSql(object,parameClz,builder, step)) {
 					builder.append("?");
 					
-					if (arrObjClaz == null) {
-						arrObjClaz = object.getClass();
-						handler = typeHandlerRegistry.getTypeHandler(arrObjClaz);
-					}
-					
 					this.parameterValueMappins.add(object);
-					this.typeHandlerList.add(handler);
+					this.typeHandlerList.add(
+							typeHandlerRegistry.getTypeHandler(object.getClass()));
 					
 					sql = sql.replace(replaceParts.get(step), builder.toString());
 				}
@@ -329,10 +334,9 @@ public class DefaultSqlSource implements SqlSource {
 			Object parameterObject = args.get(0);
 			Class<?> parameClz = parameterObject.getClass();
 			StringBuilder builder = new StringBuilder();
-
-			appendArrayCollectionSql(parameterObject, parameClz, builder);
 			
-			sql = sql.replace(super.replaceParts.get(0), builder);
+			appendArrayCollectionSql(parameterObject, parameClz, builder, 0);
+//			sql = sql.replace(super.replaceParts.get(0), builder);
 		}
 	}
 	
@@ -388,16 +392,12 @@ public class DefaultSqlSource implements SqlSource {
 					propertyDescriptor = new PropertyDescriptor(property, parameterObject.getClass());
 					Method readMethod = propertyDescriptor.getReadMethod();
 					Object obj = ReflectionUtils.invokeMethod(parameterObject, readMethod, null);
-					if (!appendArrayCollectionSql(obj,pm.getJavaType(),builder)) {
+					if (!appendArrayCollectionSql(obj,pm.getJavaType(),builder, i)) {
 						builder.append("?");
 						
-						if (arrObjClaz == null) {
-							arrObjClaz = obj.getClass();
-							handler = typeHandlerRegistry.getTypeHandler(arrObjClaz);
-						}
-						
 						this.parameterValueMappins.add(obj);
-						this.typeHandlerList.add(handler);
+						this.typeHandlerList.add(
+								typeHandlerRegistry.getTypeHandler(obj.getClass()));
 						
 						sql = sql.replace(replaceParts.get(i), builder.toString());
 					}
@@ -428,7 +428,10 @@ public class DefaultSqlSource implements SqlSource {
 		@Override
 		protected void pretreatmentBuilderBoundSql(Map<Integer, Object> args) {
 			sql = sql.replace(replaceParts.get(0), "?");
-			parameterValueMappins.add(args.get(0));
+			Object object = args.get(0);
+			parameterValueMappins.add(object);
+			this.typeHandlerList.add(
+					typeHandlerRegistry.getTypeHandler(object.getClass()));
 		}
 	}
 	
@@ -468,21 +471,15 @@ public class DefaultSqlSource implements SqlSource {
 			int len = sortedlist.size();
 			StringBuilder builder = new StringBuilder();
 			ParameterMapping pm;
-			Class<?> arrObjClaz = null;
-			TypeHandler<Object> handler = null;
 			for (int i = 0; i < len; i++,builder.delete(0, builder.length())) {
 				pm = sortedlist.get(i);
 				Object object = args.get(Integer.parseInt(pm.getProperty()));
-				if (!appendArrayCollectionSql(object,pm.getJavaType(),builder)) {
+				if (!appendArrayCollectionSql(object,pm.getJavaType(),builder, i)) {
 					builder.append("?");
 					
-					if (arrObjClaz == null) {
-						arrObjClaz = object.getClass();
-						handler = typeHandlerRegistry.getTypeHandler(arrObjClaz);
-					}
-					
 					this.parameterValueMappins.add(object);
-					this.typeHandlerList.add(handler);
+					this.typeHandlerList.add(
+							typeHandlerRegistry.getTypeHandler(object.getClass()));
 					
 					sql = sql.replace(replaceParts.get(i), builder.toString());
 				}

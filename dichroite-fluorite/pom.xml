@@ -12,7 +12,6 @@
 		<dependency>
 			<groupId>org.zy.fluorite</groupId>
 			<artifactId>fluorite-autoconfigure</artifactId>
-			<scope>compile</scope>
 		</dependency>
 	</dependencies>
 </project>

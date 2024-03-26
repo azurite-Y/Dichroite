@@ -1,3 +1,6 @@
 /.idea/
-/.classpath/
 /.settings/
+/.classpath
+# 方便导入 Eclipse
+#/.project
+/dichroite.iml
